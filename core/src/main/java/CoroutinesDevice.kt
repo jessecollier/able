@@ -17,23 +17,33 @@ import com.juul.able.experimental.messenger.GattCallbackConfig
 import com.juul.able.experimental.messenger.Messenger
 import kotlinx.coroutines.CancellationException
 
-class CoroutinesDevice(
+private typealias GattConnector = (context: Context, autoConnect: Boolean) -> CoroutinesGatt?
+
+/**
+ * Provides a [Gatt] by requesting that a connection to the `device` be established.
+ *
+ * [Gatt.close] must be called when the connection is no longer needed.
+ */
+private fun defaultGattConnector(
+    device: BluetoothDevice,
+    callbackConfig: GattCallbackConfig
+): GattConnector = { context, autoConnect ->
+    val callback = GattCallback(callbackConfig)
+    device.connectGatt(context, autoConnect, callback)?.let { bluetoothGatt ->
+        val messenger = Messenger(bluetoothGatt, callback)
+        CoroutinesGatt(bluetoothGatt, messenger)
+    }
+}
+
+class CoroutinesDevice internal constructor(
     private val device: BluetoothDevice,
-    private val callbackConfig: GattCallbackConfig = GattCallbackConfig()
+    private val gattConnector: GattConnector
 ) : Device {
 
-    /**
-     * Requests that a connection to the [device] be established.
-     *
-     * A dedicated thread is spun up to handle interacting with the newly retrieved [BluetoothGatt]
-     * and must be closed when the connection is no longer needed by invoking [Gatt.close].
-     */
-    private fun requestConnectGatt(context: Context, autoConnect: Boolean): CoroutinesGatt? {
-        val callback = GattCallback(callbackConfig)
-        val bluetoothGatt = device.connectGatt(context, autoConnect, callback) ?: return null
-        val messenger = Messenger(bluetoothGatt, callback)
-        return CoroutinesGatt(bluetoothGatt, messenger)
-    }
+    constructor(
+        device: BluetoothDevice,
+        callbackConfig: GattCallbackConfig = GattCallbackConfig()
+    ) : this(device, defaultGattConnector(device, callbackConfig))
 
     /**
      * Establishes a connection to the [BluetoothDevice], suspending until connection is successful
@@ -61,7 +71,7 @@ class CoroutinesDevice(
      * (which stops the dedicated thread).
      */
     override suspend fun connectGatt(context: Context, autoConnect: Boolean): ConnectGattResult {
-        val gatt = requestConnectGatt(context, autoConnect)
+        val gatt = gattConnector.invoke(context, autoConnect)
             ?: return Failure(
                 RemoteException("`BluetoothDevice.connectGatt` returned `null`.")
             )

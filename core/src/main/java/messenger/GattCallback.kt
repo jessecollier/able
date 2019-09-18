@@ -15,6 +15,7 @@ import com.juul.able.experimental.asGattConnectionStatusString
 import com.juul.able.experimental.asGattStateString
 import kotlinx.coroutines.channels.BroadcastChannel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.sendBlocking
 import kotlinx.coroutines.sync.Mutex
 
 data class GattCallbackConfig(
@@ -42,7 +43,7 @@ data class GattCallbackConfig(
 internal class GattCallback(config: GattCallbackConfig) : BluetoothGattCallback() {
 
     internal val onConnectionStateChange =
-        BroadcastChannel<OnConnectionStateChange>(Channel.CONFLATED)
+        BroadcastChannel<OnConnectionStateChange>(1)
     internal val onCharacteristicChanged =
         BroadcastChannel<OnCharacteristicChanged>(config.onCharacteristicChangedCapacity)
 
@@ -93,16 +94,12 @@ internal class GattCallback(config: GattCallbackConfig) : BluetoothGattCallback(
             "onConnectionStateChange → status = $statusString, newState = $stateString"
         }
 
-        if (!onConnectionStateChange.offer(OnConnectionStateChange(status, newState))) {
-            Able.warn { "onConnectionStateChange → dropped" }
-        }
+        onConnectionStateChange.sendBlocking(OnConnectionStateChange(status, newState))
     }
 
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: GattStatus) {
         Able.verbose { "onServicesDiscovered → status = $status" }
-        if (!onServicesDiscovered.offer(status)) {
-            Able.warn { "onServicesDiscovered → dropped" }
-        }
+        onServicesDiscovered.sendBlocking(status)
         notifyGattReady()
     }
 
@@ -113,9 +110,7 @@ internal class GattCallback(config: GattCallbackConfig) : BluetoothGattCallback(
     ) {
         Able.verbose { "onCharacteristicRead → uuid = ${characteristic.uuid}" }
         val event = OnCharacteristicRead(characteristic, characteristic.value, status)
-        if (!onCharacteristicRead.offer(event)) {
-            Able.warn { "onCharacteristicRead → dropped" }
-        }
+        onCharacteristicRead.sendBlocking(event)
         notifyGattReady()
     }
 
@@ -125,9 +120,7 @@ internal class GattCallback(config: GattCallbackConfig) : BluetoothGattCallback(
         status: GattStatus
     ) {
         Able.verbose { "onCharacteristicWrite → uuid = ${characteristic.uuid}" }
-        if (!onCharacteristicWrite.offer(OnCharacteristicWrite(characteristic, status))) {
-            Able.warn { "onCharacteristicWrite → dropped" }
-        }
+        onCharacteristicWrite.sendBlocking(OnCharacteristicWrite(characteristic, status))
         notifyGattReady()
     }
 
@@ -137,9 +130,7 @@ internal class GattCallback(config: GattCallbackConfig) : BluetoothGattCallback(
     ) {
         Able.verbose { "onCharacteristicChanged → uuid = ${characteristic.uuid}" }
         val event = OnCharacteristicChanged(characteristic, characteristic.value)
-        if (!onCharacteristicChanged.offer(event)) {
-            Able.warn { "OnCharacteristicChanged → dropped" }
-        }
+        onCharacteristicChanged.sendBlocking(event)
 
         // We don't call `notifyGattReady` because `onCharacteristicChanged` is called whenever a
         // characteristic changes (after notification(s) have been enabled) so is not directly tied
@@ -152,9 +143,7 @@ internal class GattCallback(config: GattCallbackConfig) : BluetoothGattCallback(
         status: GattStatus
     ) {
         Able.verbose { "onDescriptorRead → uuid = ${descriptor.uuid}" }
-        if (!onDescriptorRead.offer(OnDescriptorRead(descriptor, descriptor.value, status))) {
-            Able.warn { "onDescriptorRead → dropped" }
-        }
+        onDescriptorRead.sendBlocking(OnDescriptorRead(descriptor, descriptor.value, status))
         notifyGattReady()
     }
 
@@ -164,25 +153,19 @@ internal class GattCallback(config: GattCallbackConfig) : BluetoothGattCallback(
         status: GattStatus
     ) {
         Able.verbose { "onDescriptorWrite → uuid = ${descriptor.uuid}" }
-        if (!onDescriptorWrite.offer(OnDescriptorWrite(descriptor, status))) {
-            Able.warn { "onDescriptorWrite → dropped" }
-        }
+        onDescriptorWrite.sendBlocking(OnDescriptorWrite(descriptor, status))
         notifyGattReady()
     }
 
     override fun onReliableWriteCompleted(gatt: BluetoothGatt, status: Int) {
         Able.verbose { "onReliableWriteCompleted → status = $status" }
-        if (!onReliableWriteCompleted.offer(OnReliableWriteCompleted(status))) {
-            Able.warn { "onReliableWriteCompleted → dropped" }
-        }
+        onReliableWriteCompleted.sendBlocking(OnReliableWriteCompleted(status))
         notifyGattReady()
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
         Able.verbose { "onMtuChanged → status = $status" }
-        if (!onMtuChanged.offer(OnMtuChanged(mtu, status))) {
-            Able.warn { "onMtuChanged → dropped" }
-        }
+        onMtuChanged.sendBlocking(OnMtuChanged(mtu, status))
         notifyGattReady()
     }
 }

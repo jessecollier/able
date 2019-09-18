@@ -24,6 +24,8 @@ class ConnectionStateMonitor(private val gatt: Gatt) : Closeable {
         Able.debug { "Suspending until ${state.asGattStateString()}" }
 
         gatt.onConnectionStateChange.openSubscription().also { subscription ->
+            println("subscribed!")
+
             if (state == BluetoothProfile.STATE_DISCONNECTED && subscription.isEmpty) {
                 // When disconnecting, the channel may be empty if we've never connected before, so
                 // we shouldn't wait.
@@ -37,6 +39,7 @@ class ConnectionStateMonitor(private val gatt: Gatt) : Closeable {
                     connectionStateSubscription = subscription
                 }
 
+                println("consumeEach")
                 subscription.consumeEach { (status, newState) ->
                     Able.verbose {
                         val statusString = status.asGattConnectionStatusString()
