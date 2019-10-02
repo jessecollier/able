@@ -44,6 +44,7 @@ class Messenger internal constructor(
                     message.descriptor.value = message.value
                     bluetoothGatt.writeDescriptor(message.descriptor)
                 }
+                is Message.ReadRemoteRssi -> bluetoothGatt.readRemoteRssi()
             }
 
             Able.debug { "Processed ${message.javaClass.simpleName}, result=$result" }

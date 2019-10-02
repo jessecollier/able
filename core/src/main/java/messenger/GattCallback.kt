@@ -25,7 +25,8 @@ data class GattCallbackConfig(
     val onDescriptorReadCapacity: Int = Channel.CONFLATED,
     val onDescriptorWriteCapacity: Int = Channel.CONFLATED,
     val onReliableWriteCompletedCapacity: Int = Channel.CONFLATED,
-    val onMtuChangedCapacity: Int = Channel.CONFLATED
+    val onMtuChangedCapacity: Int = Channel.CONFLATED,
+    val onReadRemoteRssi: Int = Channel.CONFLATED
 ) {
     constructor(capacity: Int = Channel.CONFLATED) : this(
         onCharacteristicChangedCapacity = capacity,
@@ -35,7 +36,8 @@ data class GattCallbackConfig(
         onDescriptorReadCapacity = capacity,
         onDescriptorWriteCapacity = capacity,
         onReliableWriteCompletedCapacity = capacity,
-        onMtuChangedCapacity = capacity
+        onMtuChangedCapacity = capacity,
+        onReadRemoteRssi = capacity
     )
 }
 
@@ -57,6 +59,7 @@ internal class GattCallback(config: GattCallbackConfig) : BluetoothGattCallback(
     internal val onReliableWriteCompleted =
         Channel<OnReliableWriteCompleted>(config.onReliableWriteCompletedCapacity)
     internal val onMtuChanged = Channel<OnMtuChanged>(config.onMtuChangedCapacity)
+    internal val onReadRemoteRssi = Channel<OnReadRemoteRssi>(config.onReadRemoteRssi)
 
     private val gattLock = Mutex()
     internal suspend fun waitForGattReady() = gattLock.lock()
@@ -182,6 +185,14 @@ internal class GattCallback(config: GattCallbackConfig) : BluetoothGattCallback(
         Able.verbose { "onMtuChanged → status = $status" }
         if (!onMtuChanged.offer(OnMtuChanged(mtu, status))) {
             Able.warn { "onMtuChanged → dropped" }
+        }
+        notifyGattReady()
+    }
+
+    override fun onReadRemoteRssi(gatt: BluetoothGatt, rssi: Int, status: Int) {
+        Able.verbose { "onReadRemoteRssi → status = $status" }
+        if (!onReadRemoteRssi.offer(OnReadRemoteRssi(rssi, status))) {
+            Able.warn { "onReadRemoteRssi → dropped" }
         }
         notifyGattReady()
     }

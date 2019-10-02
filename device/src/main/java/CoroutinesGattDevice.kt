@@ -25,6 +25,7 @@ import com.juul.able.experimental.messenger.OnCharacteristicWrite
 import com.juul.able.experimental.messenger.OnConnectionStateChange
 import com.juul.able.experimental.messenger.OnDescriptorWrite
 import com.juul.able.experimental.messenger.OnMtuChanged
+import com.juul.able.experimental.messenger.OnReadRemoteRssi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -232,6 +233,8 @@ class CoroutinesGattDevice internal constructor(
     ): OnDescriptorWrite = gatt.writeDescriptor(descriptor, value)
 
     override suspend fun requestMtu(mtu: Int): OnMtuChanged = gatt.requestMtu(mtu)
+
+    override suspend fun readRemoteRssi(): OnReadRemoteRssi = gatt.readRemoteRssi()
 
     override fun setCharacteristicNotification(
         characteristic: BluetoothGattCharacteristic,

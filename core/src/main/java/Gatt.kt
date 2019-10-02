@@ -18,6 +18,7 @@ import com.juul.able.experimental.messenger.OnCharacteristicWrite
 import com.juul.able.experimental.messenger.OnConnectionStateChange
 import com.juul.able.experimental.messenger.OnDescriptorWrite
 import com.juul.able.experimental.messenger.OnMtuChanged
+import com.juul.able.experimental.messenger.OnReadRemoteRssi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BroadcastChannel
 import java.io.Closeable
@@ -89,6 +90,7 @@ interface Gatt : Closeable, CoroutineScope {
     ): OnDescriptorWrite
 
     suspend fun requestMtu(mtu: Int): OnMtuChanged
+    suspend fun readRemoteRssi(): OnReadRemoteRssi
 
     fun setCharacteristicNotification(
         characteristic: BluetoothGattCharacteristic,

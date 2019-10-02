@@ -14,6 +14,7 @@ import android.bluetooth.BluetoothProfile.STATE_CONNECTED
 import android.bluetooth.BluetoothProfile.STATE_DISCONNECTED
 import android.bluetooth.BluetoothProfile.STATE_DISCONNECTING
 import android.os.RemoteException
+import com.juul.able.experimental.messenger.Message
 import com.juul.able.experimental.messenger.Message.DiscoverServices
 import com.juul.able.experimental.messenger.Message.ReadCharacteristic
 import com.juul.able.experimental.messenger.Message.RequestMtu
@@ -26,6 +27,7 @@ import com.juul.able.experimental.messenger.OnCharacteristicWrite
 import com.juul.able.experimental.messenger.OnConnectionStateChange
 import com.juul.able.experimental.messenger.OnDescriptorWrite
 import com.juul.able.experimental.messenger.OnMtuChanged
+import com.juul.able.experimental.messenger.OnReadRemoteRssi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BroadcastChannel
@@ -241,6 +243,32 @@ class CoroutinesGatt(
             }
         } catch (e: ClosedReceiveChannelException) {
             throw GattClosed("Gatt closed during requestMtu[mtu=$mtu]", e)
+        }
+    }
+
+    /**
+     * @throws [RemoteException] if underlying [BluetoothGatt.readRemoteRssi] returns `false`.
+     * @throws [GattClosed] if [Gatt] is closed while method is executing.
+     */
+    override suspend fun readRemoteRssi(): OnReadRemoteRssi {
+        Able.debug { "readRemoteRssi → send(ReadRemoteRssi)" }
+
+        val response = CompletableDeferred<Boolean>()
+        messenger.send(Message.ReadRemoteRssi(response))
+
+        val call = "BluetoothGatt.readRemoteRssi()"
+        Able.verbose { "readRemoteRssi → Waiting for $call" }
+        if (!response.await()) {
+            throw RemoteException("$call returned false.")
+        }
+
+        Able.verbose { "readRemoteRssi → Waiting for BluetoothGattCallback" }
+        return try {
+            messenger.callback.onReadRemoteRssi.receiveRequiringConnection().also { (status) ->
+                Able.info { "readRemoteRssi status=${status.asGattStatusString()}" }
+            }
+        } catch (e: ClosedReceiveChannelException) {
+            throw GattClosed("Gatt closed during readRemoteRssi", e)
         }
     }
 

@@ -41,6 +41,10 @@ internal sealed class Message {
         val value: ByteArray,
         override val response: CompletableDeferred<Boolean>
     ) : Message()
+
+    internal data class ReadRemoteRssi(
+        override val response: CompletableDeferred<Boolean>
+    ) : Message()
 }
 
 data class OnConnectionStateChange(
@@ -135,3 +139,5 @@ data class OnDescriptorWrite(
 data class OnReliableWriteCompleted(val status: GattStatus)
 
 data class OnMtuChanged(val mtu: Int, val status: GattStatus)
+
+data class OnReadRemoteRssi(val rssi: Int, val status: GattStatus)
